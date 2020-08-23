@@ -23,24 +23,33 @@ module ColorUtil
       from_rgb(r, g, b)
     end
 
-    # Creates a color from individual rgb values.
+    # Creates a `Color` from individual rgb values.
     def self.from_rgb(r, g, b)
       h, s, l = HSLuv.rgb_to_hsluv(r.to_f64, g.to_f64, b.to_f64)
       new(h, s, l)
     end
+    
+    # Creates a `Color` using HSLuv hsl components.
+    def self.from_hsl(h : Float64, s : Float64, l : Float64)
+      new(h, s, l)
+    end
 
     # The struct stores data in HSLuv hsl form, so all initializiation eventually
-    # boils down to calling this constructor.
+    # boils down to calling this constructor. It's private by default to allow API
+    # consistency with from_rgb and from_hsl
     private def initialize(@h, @s, @l)
     end
 
-    def r
+    def r : UInt8
+      HSLuv.hsluv_to_rgb(@h, @s, @l)[0].to_u8
     end
 
-    def g
+    def g : UInt8
+      HSLuv.hsluv_to_rgb(@h, @s, @l)[1].to_u8
     end
 
-    def b
+    def b : UInt8
+      HSLuv.hsluv_to_rgb(@h, @s, @l)[2].to_u8
     end
 
     # Returns the raw 24-bit integer value that represents this color.
