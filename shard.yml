@@ -1,0 +1,13 @@
+name: colorutil
+version: 0.1.0
+
+authors:
+  - Seth Hinz <sethhinz@me.com>
+
+dependencies:
+  hsluv:
+    github: shinzlet/hsluv-crystal
+
+crystal: 0.34.0
+
+license: MIT
