@@ -6,7 +6,7 @@ authors:
 
 dependencies:
   hsluv:
-    github: shinzlet/hsluv-crystal
+    github: hsluv/hsluv-crystal
 
 crystal: 0.34.0
 

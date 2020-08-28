@@ -1,6 +1,20 @@
 # colorutil
 
-TODO: Write a description here
+ColorUtil is a library that enables working with colors rapidly in Crystal.
+It also acts as a wrapper around
+[hsluv-crystal](https://github.com/hsluv/hsluv-crystal), whose api slightly
+too verbose for my liking.
+
+Note that this is in very early development - many features that I'd like to
+add haven't been implemented yet. Better documentation is to come soon.
+
+## Goals
+- Generation of color palettes with user-defined constraints
+- Various interpolation methods that look clean
+- Monkey-patched extensions that allow interoperability with other libraries (crsfml, etc)
+
+### Things that would be neat
+- Compile-time color conversion?
 
 ## Installation
 
@@ -9,7 +23,7 @@ TODO: Write a description here
    ```yaml
    dependencies:
      colorutil:
-       github: your-github-user/colorutil
+       github: shinzlet/colorutil
    ```
 
 2. Run `shards install`
@@ -20,15 +34,12 @@ TODO: Write a description here
 require "colorutil"
 ```
 
-TODO: Write usage instructions here
-
-## Development
-
-TODO: Write development instructions here
+Usage instructions are not yet written, as this is a very early stage in
+development.
 
 ## Contributing
 
-1. Fork it (<https://github.com/your-github-user/colorutil/fork>)
+1. Fork it (<https://github.com/shinzlet/colorutil/fork>)
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
@@ -36,4 +47,4 @@ TODO: Write development instructions here
 
 ## Contributors
 
-- [Seth Hinz](https://github.com/your-github-user) - creator and maintainer
+- [Seth Hinz](https://github.com/shinzlet) - creator and maintainer

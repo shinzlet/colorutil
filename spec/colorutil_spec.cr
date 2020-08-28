@@ -6,9 +6,7 @@ describe Color do
   describe "#from_hex" do
     it "constructs a color from hex" do
       col = Color.from_hex(0xabcdef)
-      col.r.should eq 0xab
-      col.g.should eq 0xcd
-      col.b.should eq 0xef
+      col.rgb.should eq ( {r: 0xab, g: 0xcd, b: 0xef} )
     end
 
     it "raises on overflow" do
@@ -17,9 +15,22 @@ describe Color do
       end
     end
 
-    it "doesn't raise for normal colors" do
-      Color.from_hex(0xffffff)
+    it "doesn't raise for normal colors" do Color.from_hex(0xffffff)
       Color.from_hex(0x000000)
+    end
+  end
+
+  describe "#from_rgb" do
+    it "creates a color from rgb"
+      col = Color.from_rgb(0xea, 0x00, 0x64)
+      col.to_hex.should eq "#ea0064"
+    end
+  end
+
+  describe "#rgb" do
+    it "converts to rgb properly"
+      col = Color.from_rgb(0xab, 0xcd, 0xef)
+      col.rgb.should eq {r: 0xab, g: 0xcd, b: 0xef}
     end
   end
 
