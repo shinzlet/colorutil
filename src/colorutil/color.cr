@@ -1,8 +1,11 @@
 require "hsluv"
+require "yaml"
 
 module ColorUtil
   # Specifies a 24 bit color.
   class Color
+    include YAML::Serializable
+
     getter h : Float64
     getter s : Float64
     getter l : Float64
