@@ -5,8 +5,8 @@ authors:
   - Seth Hinz <sethhinz@me.com>
 
 dependencies:
-  colorutil:
-    github: shinzlet/colorutil
+  hsluv:
+    github: hsluv/hsluv-crystal
 
 crystal: 0.34.0
 

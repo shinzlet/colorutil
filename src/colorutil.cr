@@ -5,6 +5,20 @@ module ColorUtil
   extend self
   VERSION = "0.1.0"
 
+  # Interpolates between two colors. When `frac == 0`, returns
+  # `start`. As `frac` approaches 1, the function returns a color
+  # closer and closer to `stop`.
+  def interpolate(start : Color, stop : Color, frac)
+    rise = frac.to_f64
+    fall = 1f64 - rise
+
+    h = start.h * fall + stop.h * rise
+    s = start.s * fall + stop.s * rise
+    l = start.l * fall + stop.l * rise
+
+    Color.from_hsl(h, s, l)
+  end
+
   # Returns the WCAG contrast ratio between two colors.
   #
   # Parameters:

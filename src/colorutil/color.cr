@@ -13,7 +13,7 @@ module ColorUtil
     # Creates a color from an rgb hexidecimal value. For example,
     # `Color.from_hex(0xff00ff)` creates the fuchsia usually described as
     # "#ff00ff".
-    def self.from_hex(color) : Color
+    def self.from_hex(color : Int32 | UInt32) : Color
       if color > 0xffffff
         color_string = "0x" + color.to_s(16).rjust(6, '0')
         raise OverflowError.new("#{color_string} is not a 24-bit color!")
@@ -24,6 +24,11 @@ module ColorUtil
       b = (color & 0x0000ff) >> 0
 
       from_rgb(r, g, b)
+    end
+
+    def self.from_hex(color : String) : Color
+      h, s, l = HSLuv.hex_to_hsluv(color)
+      from_hsl(h, s, l)
     end
 
     # Creates a `Color` from individual rgb values.

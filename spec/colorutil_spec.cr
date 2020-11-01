@@ -21,16 +21,16 @@ describe Color do
   end
 
   describe "#from_rgb" do
-    it "creates a color from rgb"
+    it "creates a color from rgb" do
       col = Color.from_rgb(0xea, 0x00, 0x64)
-      col.to_hex.should eq "#ea0064"
+      col.to_hex_string.should eq "#ea0064"
     end
   end
 
   describe "#rgb" do
-    it "converts to rgb properly"
+    it "converts to rgb properly" do
       col = Color.from_rgb(0xab, 0xcd, 0xef)
-      col.rgb.should eq {r: 0xab, g: 0xcd, b: 0xef}
+      col.rgb.should eq( {r: 0xab, g: 0xcd, b: 0xef} )
     end
   end
 
