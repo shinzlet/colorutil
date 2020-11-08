@@ -7,6 +7,8 @@ authors:
 dependencies:
   hsluv:
     github: hsluv/hsluv-crystal
+  num:
+    github: crystal-data/num.cr
 
 crystal: 0.34.0
 
