@@ -47,6 +47,21 @@ module ColorUtil
       new(Random.rand(360f64), Random.rand(100f64), Random.rand(100f64))
     end
 
+    # TODO: Refactor to use the interpolation function
+    # Interpolates between two colors. When `frac == 0`, returns
+    # `start`. As `frac` approaches 1, the function returns a color
+    # closer and closer to `stop`.
+    def self.mix(start : Color, stop : Color, frac)
+      rise = frac.to_f64
+      fall = 1f64 - rise
+
+      h = start.h * fall + stop.h * rise
+      s = start.s * fall + stop.s * rise
+      l = start.l * fall + stop.l * rise
+
+      from_hsl(h, s, l)
+    end
+
     # The struct stores data in HSLuv hsl form, so all initializiation eventually
     # boils down to calling this constructor. It's private by default to allow API
     # consistency with from_rgb and from_hsl
@@ -103,6 +118,11 @@ module ColorUtil
     # By default, the string version of a color is it's hex string.
     def to_s(io : IO) : Nil
       io << to_hex_string
+    end
+
+    # Returns an [h, s, l] array storing color data.
+    def to_a : Array(Float64)
+      [h, s, l]
     end
 
     # Returns the luminance contrast ratio between this color and another.

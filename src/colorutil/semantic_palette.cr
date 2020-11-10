@@ -1,8 +1,8 @@
 require "yaml"
 require "num"
-require "./utils.cr"
+require "./math.cr"
 
-include Mixologist::Utils
+include ColorUtil::Math
 
 module Mixologist
   class SemanticPalette
@@ -11,36 +11,39 @@ module Mixologist
     DEFAULT_SIZE = 3
     READABLE_CONTRAST = 3.5f64
 
-    # [h, s, l] triple
-    property driver : Array(Float64)
+    # The driver is the 0th color in a baked keyframe. It is the only fully defined color,
+    # and `BakedPalette` uses it as a basis for 
+    property driver : Color
 
-    # [[h, s], [h, s], ..] (Hues and saturations for each foreground color, starting at 1
-    property colors : Array(Array(Float64))
+    # [[h, s], [h, s], ..] (Hues and saturations for each foreground color, starting at color 1
+    property qualia : Array(Array(Float64))
 
     # [[color1, color2, contrast], ...] (Pairs of color indecies and the contrast between them)
     property rules : Array(Array(Float64))
 
-    def initialize(@bg, @fg, @rules)
+    def initialize(@driver, @qualia, @rules)
     end
 
     def initialize()
-      # Initialize the background to black
-      @bg = [1f64, 2f64, 3f64]
-      
-      # Make all the foreground colors fully saturated and a rainbow in their indeces
-      @fg = Array(Array(Float64)).new(FG_COLORS) do |i|
+      # Define the driver color to be black
+      @driver = [0f64, 0f64, 0f64]
+
+      # Make colors fully saturated and a rainbow in their indeces
+      @qualia = Array(Array(Float64)).new(DEFAULT_SIZE - 1) do |i|
         [(360f64 * i) / (FG_COLORS), 50f64]
       end
 
-      @rules = Array(Array(Float64)).new(PALETTE_SIZE - 1) do |i|
+      # Create a rule that forces each color to have a readable contrast with the driver.
+      @rules = Array(Array(Float64)).new(DEFAULT_SIZE - 1) do |i|
         [0f64, i + 1f64, READABLE_CONTRAST]
       end
     end
 
+    # TODO: Rename variables to start and stop
     # Create a new keyframe via the interpolation of the previous ans subsequent keyframe.
     def initialize(prev, subs, rise)
-      @bg = interpolate(prev.bg.to_tensor, subs.bg.to_tensor, rise).to_a
-      @fg = peel_matrix(interpolate(prev.fg.to_tensor, subs.fg.to_tensor, rise))
+      @driver = interpolate(prev.driver.to_tensor, subs.driver.to_tensor, rise).to_a
+      @qualia = peel_matrix(interpolate(prev.qualia.to_tensor, subs.quala.to_tensor, rise))
       interpolated_contrast_tensor = interpolate(prev.contrast_tensor, subs.contrast_tensor, rise)
       @rules = BakedPalette.construct_rules(interpolated_contrast_tensor)
     end
