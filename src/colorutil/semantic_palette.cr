@@ -1,14 +1,14 @@
 require "yaml"
 require "num"
-require "./math.cr"
+require "./helpers.cr"
 
-include ColorUtil::Math
+include ColorUtil::Helpers
 
-module Mixologist
+module ColorUtil
   class SemanticPalette
     include YAML::Serializable
 
-    DEFAULT_SIZE = 3
+    DEFAULT_SIZE = 2
     READABLE_CONTRAST = 3.5f64
 
     # The driver is the 0th color in a baked keyframe. It is the only fully defined color,
@@ -26,11 +26,11 @@ module Mixologist
 
     def initialize()
       # Define the driver color to be black
-      @driver = [0f64, 0f64, 0f64]
+      @driver = Color.from_hsl(0f64, 0f64, 0f64)
 
       # Make colors fully saturated and a rainbow in their indeces
       @qualia = Array(Array(Float64)).new(DEFAULT_SIZE - 1) do |i|
-        [(360f64 * i) / (FG_COLORS), 50f64]
+        [(360f64 * i) / (DEFAULT_SIZE-1), 50f64]
       end
 
       # Create a rule that forces each color to have a readable contrast with the driver.
@@ -78,6 +78,11 @@ module Mixologist
       end
 
       rules
+    end
+
+    # Returns a `BakedPalette` instantiated with this semantic information
+    def bake : BakedPalette
+      BakedPalette.new(self)
     end
   end
 end
