@@ -3,7 +3,7 @@ require "./color"
 
 module ColorUtil
   struct BakedPalette
-    ITERATIONS = 10
+    ITERATIONS = 500
     VELOCITY = 0.001f64
 
     @palette : Array(Color)
@@ -17,8 +17,7 @@ module ColorUtil
       # a large change in the driven colors. This is undesirable, so we'll start
       # at the driver every time to try to keep the solutions in the same neighbourhood
       # of the driver.
-      lightness = Tensor(Float64).random(0f64..1f64, [source.qualia.size + 1])
-      lightness[0] = source.driver.l
+      lightness = Tensor(Float64).ones([source.qualia.size + 1]) * source.driver.l
 
       ITERATIONS.times do
         gradient = BakedPalette.error_gradient(lightness, source.rules)
@@ -86,7 +85,7 @@ module ColorUtil
       if wrt == fixed
         # This might be undesirable, if the system is getting stuck at the inflection point.
         # Consider changing to be a small random number (+/-0.05)
-        return 0f64
+        return 0.05f64
       elsif wrt < fixed
         return -(fixed + 0.05f64) / (wrt + 0.05f64) ** 2
       else

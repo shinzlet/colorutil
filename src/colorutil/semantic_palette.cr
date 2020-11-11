@@ -26,7 +26,7 @@ module ColorUtil
 
     def initialize()
       # Define the driver color to be black
-      @driver = Color.from_hsl(0f64, 0f64, 0f64)
+      @driver = Color.from_hsl(0f64, 0f64, 0.5f64)
 
       # Make colors fully saturated and a rainbow in their indeces
       @qualia = Array(Array(Float64)).new(DEFAULT_SIZE - 1) do |i|
