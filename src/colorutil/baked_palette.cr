@@ -1,10 +1,11 @@
 require "num"
 require "./color"
+require "colorize"
 
 module ColorUtil
   struct BakedPalette
     ITERATIONS = 500
-    VELOCITY = 0.001f64
+    NEIGHBOUR_COEFFICIENT = 0.5f64
 
     @palette : Array(Color)
 
@@ -12,37 +13,100 @@ module ColorUtil
     # getter error : Float64
 
     def initialize(source : SemanticPalette)
-      # Initializing the lightnesses randomly would mean that we'd likely
-      # lose temporal coherence - a small change in the driver would create 
-      # a large change in the driven colors. This is undesirable, so we'll start
-      # at the driver every time to try to keep the solutions in the same neighbourhood
-      # of the driver.
-      lightness = Tensor(Float64).ones([source.qualia.size + 1]) * source.driver.l
+      max_error = BakedPalette.max_error(source.rules)
 
-      ITERATIONS.times do
-        gradient = BakedPalette.error_gradient(lightness, source.rules)
-        # 0 is the driver color, which we won't change.
-        gradient[0] = 0
-        dynamic_velocity = VELOCITY / (Helpers.norm(gradient)**2 + 1)
+      lightness = Tensor(Float64).random(0f64..1f64, [source.qualia.size + 1])
+      lightness[0] = source.driver.l
+      energy = BakedPalette.energy(lightness, source.rules, max_error)
 
-        puts "iteration:"
-        puts "current lightness: #{lightness}"
-        puts "gradient: #{gradient}"
-        puts "error: #{BakedPalette.error(lightness, source.rules)}"
-        puts "dynamic velocity: #{dynamic_velocity}"
-        puts "step: #{gradient * dynamic_velocity}"
+      # Runs simulated annealing - a metaheuristic to approximate the global minimum energy
+      ITERATIONS.times do |i|
+        completion = i.to_f64 / ITERATIONS
+        temp = BakedPalette.temperature(completion)
+        candidate = BakedPalette.neighbour(lightness, temp)
+        candidate[0] = source.driver.l
+        candidate_energy = BakedPalette.energy(candidate, source.rules, max_error)
+        acceptance_prob = BakedPalette.acceptance_probability(energy, candidate_energy, temp)
+
+        puts "iteration #{i}"
+        puts "lightness: #{lightness}"
+        puts "candidate: #{candidate}"
+        puts "current energy: #{energy}"
+        puts "candidate energy: #{candidate_energy}"
+        puts "acceptance probability: #{acceptance_prob}"
+        # puts "lightness: #{lightness}"
+        # puts "temperature: #{temp}"
+
+        if Random.rand < acceptance_prob
+          puts "(candidate found) dE = #{candidate_energy - energy}".colorize(:green)
+          lightness = candidate
+          energy = candidate_energy
+        end
+
         puts
-        lightness -= VELOCITY * gradient
-        lightness.map! { |value| Math.min(Math.max(value, 0f64), 1f64)}
       end
 
       # Copy lightness information into a color palette
-
       @palette = [source.driver]
 
       source.qualia.each_with_index do |hs, idx|
         @palette << Color.from_hsl(hs[0], hs[1], lightness[idx + 1].value)
       end
+    end
+
+    # Returns the probability of accepting a new state given the annealing temperatue
+    # and the energy of the new state.
+    # Requires normalized energies on [0, 1]
+    def self.acceptance_probability(energy, new_energy, temp)
+      # Semantically speaking, this is a measure of how much the error has gone down
+      decrease = energy - new_energy
+
+      # This function is sigmoidal when the temperature is zero, and a constant 100%
+      # when the temperature is 1. That is to say, for larger values of decrase,
+      # the probability will increase, but that increase is greater at low temperatures.
+      # When the 'material is cold', this becomes greedy search.
+      return 1/2 * (1 + Math.tanh(decrease)) * (1 - temp/2) + temp/2
+    end
+
+    # Returns the energy for a state. This is quite wishy-washy - for a random set of lightnesses,
+    # I found that almost all of them had miniscule energy compared to the maximum error possible.
+    # So, i played with tanh to try to normalize the outputs into a more uniform range. The
+    # coefficient 51 gave me a mean energy of 0.5, so that's what i stuck with.
+    def self.energy(state, rules, max_error)
+        Math.tanh(51 * error(state, rules) / max_error)
+        # Math.min(error(state, rules) / 30, 1)
+        # error(state, rules)
+    end
+
+    # Returns an upper bound on how large the error in a system could be given a 
+    # set of rules.
+    # This upper bound is not exact - it assumes that the contrast error is always
+    # the largest that it could be, which for some rule sets, may be contradictory.
+    # For example, if there are two rules between two colors, dictating that they
+    # contraast fully and not at all, this method will return an unattainable error
+    # level.
+    def self.max_error(rules)
+      acc = 0
+
+      rules.each do |rule|
+        acc += ([21 - rule[2], rule[2]].max) ** 2
+      end
+
+      acc
+    end
+
+    # Returns a modified version of the state according to the annealing temperature.
+    def self.neighbour(state, temp)
+      span = NEIGHBOUR_COEFFICIENT * temp
+      ret = state + Tensor(Float64).random(-span..span, state.shape)
+      ret.map! { |value| Math.min(Math.max(value, 0f64), 1f64)}
+      ret
+    end
+
+    # Returns the annealing temperature at a certain completion step in the domain [0, 1].
+    # This function, too, returns a number in the range [0, 1].
+    def self.temperature(completion)
+      1f64 - completion
     end
 
     # Returns a tensor of the same size as the input storing the analytic solution for the
