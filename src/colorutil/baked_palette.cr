@@ -4,8 +4,9 @@ require "colorize"
 
 module ColorUtil
   struct BakedPalette
-    ITERATIONS = 500
+    ITERATIONS = 200
     NEIGHBOUR_COEFFICIENT = 1f64
+    EXPLORATION_TOLERANCE = 50
 
     @palette : Array(Color)
 
@@ -19,6 +20,10 @@ module ColorUtil
       lightness[0] = source.driver.l
       energy = BakedPalette.energy(lightness, source.rules, max_error)
 
+      best_lightness = lightness
+      lowest_energy = energy
+      highscore_iteration = 0
+
       # Runs simulated annealing - a metaheuristic to approximate the global minimum energy
       ITERATIONS.times do |i|
         completion = i.to_f64 / ITERATIONS
@@ -28,31 +33,42 @@ module ColorUtil
         candidate_energy = BakedPalette.energy(candidate, source.rules, max_error)
         acceptance_prob = BakedPalette.acceptance_probability(energy, candidate_energy, temp)
 
-        puts "iteration #{i}"
-        puts "temperature: #{temp}"
-        puts "current error: #{BakedPalette.error(lightness, source.rules)}".colorize(:red)
-        puts "lightness: #{lightness}"
-        puts "candidate: #{candidate}"
-        puts "current energy: #{energy}"
-        puts "candidate energy: #{candidate_energy}"
-        puts "acceptance probability: #{acceptance_prob}"
+        if energy < lowest_energy
+          lowest_energy = energy
+          best_lightness = lightness
+          highscore_iteration = i
+        end
+
+        if i - highscore_iteration > EXPLORATION_TOLERANCE
+          lightness = best_lightness
+          energy = lowest_energy
+          highscore_iteration = i
+        end
+
+        # puts "iteration #{i}"
+        # puts "temperature: #{temp}"
+        # puts "current error: #{BakedPalette.error(lightness, source.rules)}".colorize(:red)
+        # puts "lightness: #{lightness}"
+        # puts "candidate: #{candidate}"
+        # puts "current energy: #{energy}"
+        # puts "candidate energy: #{candidate_energy}"
+        # puts "acceptance probability: #{acceptance_prob}"
         # puts "lightness: #{lightness}"
         # puts "temperature: #{temp}"
 
         if Random.rand < acceptance_prob
-          puts "(candidate found) dE = #{candidate_energy - energy}".colorize(:green)
+          # puts "(candidate found) dE = #{candidate_energy - energy}".colorize(:green)
           lightness = candidate
           energy = candidate_energy
         end
-
-        puts
       end
+
 
       # Copy lightness information into a color palette
       @palette = [source.driver]
 
       source.qualia.each_with_index do |hs, idx|
-        @palette << Color.from_hsl(hs[0], hs[1], lightness[idx + 1].value)
+        @palette << Color.from_hsl(hs[0], hs[1], best_lightness[idx + 1].value)
       end
     end
 
