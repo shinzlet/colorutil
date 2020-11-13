@@ -4,7 +4,7 @@ require "colorize"
 
 module ColorUtil
   struct BakedPalette
-    ITERATIONS = 200
+    ITERATIONS = 500
     NEIGHBOUR_COEFFICIENT = 1f64
     EXPLORATION_TOLERANCE = 50
 
@@ -17,7 +17,7 @@ module ColorUtil
       max_error = BakedPalette.max_error(source.rules)
 
       lightness = Tensor(Float64).random(0f64..1f64, [source.qualia.size + 1])
-      lightness[0] = source.driver.l
+      lightness[0] = source.driver.approx_relative_luminance
       energy = BakedPalette.energy(lightness, source.rules, max_error)
 
       best_lightness = lightness
@@ -29,7 +29,7 @@ module ColorUtil
         completion = i.to_f64 / ITERATIONS
         temp = BakedPalette.temperature(completion)
         candidate = BakedPalette.neighbour(lightness, temp)
-        candidate[0] = source.driver.l
+        candidate[0] = lightness[0] # copy over the driver's relative luminance
         candidate_energy = BakedPalette.energy(candidate, source.rules, max_error)
         acceptance_prob = BakedPalette.acceptance_probability(energy, candidate_energy, temp)
 
@@ -67,8 +67,10 @@ module ColorUtil
       # Copy lightness information into a color palette
       @palette = [source.driver]
 
+      puts lightness
       source.qualia.each_with_index do |hs, idx|
-        @palette << Color.from_hsl(hs[0], hs[1], best_lightness[idx + 1].value)
+        @palette << Color.from_hsl(hs[0], hs[1],
+                                   inverse_approx_relative_luminance(best_lightness[idx + 1].value))
       end
     end
 

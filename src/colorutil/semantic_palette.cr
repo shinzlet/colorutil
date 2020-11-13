@@ -26,7 +26,7 @@ module ColorUtil
 
     def initialize()
       # Define the driver color to be black
-      @driver = Color.from_hsl(0f64, 0f64, 0.5f64)
+      @driver = Color.from_hsl(0f64, 0f64, 0f64)
 
       # Make colors fully saturated and a rainbow in their indeces
       @qualia = Array(Array(Float64)).new(DEFAULT_SIZE - 1) do |i|
@@ -41,7 +41,7 @@ module ColorUtil
 
     # TODO: Rename variables to start and stop
     # Create a new keyframe via the interpolation of the previous ans subsequent keyframe.
-    def initialize(prev, subs, rise)
+    def initialize(prev : SemanticPalette, subs : SemanticPalette, rise : Float64)
       @driver = interpolate(prev.driver.to_tensor, subs.driver.to_tensor, rise).to_a
       @qualia = peel_matrix(interpolate(prev.qualia.to_tensor, subs.quala.to_tensor, rise))
       interpolated_contrast_tensor = interpolate(prev.contrast_tensor, subs.contrast_tensor, rise)
