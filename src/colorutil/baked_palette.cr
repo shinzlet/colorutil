@@ -5,7 +5,7 @@ require "colorize"
 module ColorUtil
   struct BakedPalette
     ITERATIONS = 500
-    NEIGHBOUR_COEFFICIENT = 0.5f64
+    NEIGHBOUR_COEFFICIENT = 1f64
 
     @palette : Array(Color)
 
@@ -29,6 +29,8 @@ module ColorUtil
         acceptance_prob = BakedPalette.acceptance_probability(energy, candidate_energy, temp)
 
         puts "iteration #{i}"
+        puts "temperature: #{temp}"
+        puts "current error: #{BakedPalette.error(lightness, source.rules)}".colorize(:red)
         puts "lightness: #{lightness}"
         puts "candidate: #{candidate}"
         puts "current energy: #{energy}"
@@ -61,11 +63,14 @@ module ColorUtil
       # Semantically speaking, this is a measure of how much the error has gone down
       decrease = energy - new_energy
 
+      return 1 if decrease > 0
+      return temp * (1 + Math.tanh(decrease))
+
       # This function is sigmoidal when the temperature is zero, and a constant 100%
       # when the temperature is 1. That is to say, for larger values of decrase,
       # the probability will increase, but that increase is greater at low temperatures.
       # When the 'material is cold', this becomes greedy search.
-      return 1/2 * (1 + Math.tanh(decrease)) * (1 - temp/2) + temp/2
+      # return 1/2 * (1 + Math.tanh(decrease)) * (1 - temp/2) + temp/2
     end
 
     # Returns the energy for a state. This is quite wishy-washy - for a random set of lightnesses,
@@ -107,6 +112,7 @@ module ColorUtil
     # This function, too, returns a number in the range [0, 1].
     def self.temperature(completion)
       1f64 - completion
+      1 - Math.exp(completion - 1f64)
     end
 
     # Returns a tensor of the same size as the input storing the analytic solution for the
