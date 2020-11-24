@@ -1,3 +1,4 @@
+require "../colorutil.cr"
 require "hsluv"
 require "yaml"
 

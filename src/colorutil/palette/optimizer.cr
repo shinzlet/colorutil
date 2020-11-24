@@ -1,3 +1,5 @@
+require "num"
+
 require "../relation.cr"
 require "../color.cr"
 
@@ -7,35 +9,48 @@ module ColorUtil::Palette
     DEFAULT_ITERATIONS = 500
 
     property iteration : UInt32 = 0
-    property relations : Array(Relation)
     property max_iterations = DEFAULT_ITERATIONS
 
-    # 
-    property hash : Hash(T, Color | Array(Float64))
-    # An array of all the keys in `hash` that have pre-determined lightness
-    property constants : Array(T)
-    # variables[i] is the key that lightness[i] should be mapped to, once computed
-    property variables : Array(T)
+    property relations : Array(Relation)
 
+    # Contains both color constants and [h, s] arrays. After optimization,
+    # the resulting palette will be exactly this hash, except the `[h, s]`
+    # arrays will be completed with `[h, s, l]` arrays that best satisfy
+    # the relations being optimized for.
+    property basis : Hash(T, Color | Array(Float64))
+
+    # Connects each key in `basis` with either:
+    # - The index in `lightness` where that color is being solved for
+    # - Or the constant `Color` that was passed in with that key
+    #
+    # This is used to resolve the working location of constants and variables.
+    property lookup : Hash(T, Color | UInt32)
+
+    # `lightness[lookup[key]]` is the current estimate of the lightness that
+    # belongs with the hue and saturation specified in `basis[key]`.
     property lightness : Tensor(Float64)
 
     def initialize(@hash, @relations)
+      # TODO: Test all of this, work on step_annealing and candidate generation
       keys = @hash.keys
 
       # Decompose `hash` into a more useful representation
-      constants = Array(T).new(keys.size)
-      variables = Array(T).new(keys.size)
+      lookup = hash.new(initial_capacity = keys.size)
+      variable_count = 0
 
       keys.each do |key|
-        if hash[key].is_a? Color
-          constants << key
+        value = hash[key]
+
+        if value.is_a? Color
+          @lookup[key] = value
         else
-          variables << key
+          @lookup[key] = variable_count
+          variable_count += 1
         end
       end
 
       # Generate a random initial lightness vector
-      lightness = Tensor(Float64).random(keys.size)
+      @lightness = Tensor(Float64).random(variable_count)
     end
 
     def self.optimize(hash, rules) : Hash(T, Color)
@@ -61,7 +76,7 @@ module ColorUtil::Palette
     #
     # Returns the annealing temperature.
     def update_temperature() : Float64
-      completion = (Float64) @iteration / @max_iteration
+      completion = @iteration.to_f64 / @max_iteration
       @temperature = 1 - Math.exp(completion - 1f64)
     end
 
