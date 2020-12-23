@@ -1,4 +1,4 @@
-require "./colorutil/*"
+require "./colorutil/**"
 
 # TODO: Write documentation for `Colorutil`
 module ColorUtil

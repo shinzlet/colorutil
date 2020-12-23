@@ -1,23 +1,42 @@
 require "num"
 
-require "../relation.cr"
+require "../relation/relation.cr"
 require "../color.cr"
+
+# TODO: Remove
+require "colorize"
+
+include ColorUtil::Relations
 
 module ColorUtil::Palette
   class Optimizer(T)
-    # TODO: experiment with these
-    DEFAULT_ITERATIONS = 500
+    # The maximum number of iterations that `optimize` runs.
+    MAX_ITERATIONS = 100
+
+    # If more than this number of iterations occur without finding a new
+    # best state, the `best` checkpoint will be restored.
+    EXPLORATION_PERIOD = 50
+
+    # This is a scaling factor for creating a random candidate.
+    # It is therefore the maximum value of `(generate_candidate - @lightness)[i]`
+    # for any `i` and any possible candidate.
+    NEIGHBOUR_COEFFICIENT = 1f64
+
+    alias PartialColor = Array(Float64)
+    alias AnyColor = PartialColor | ColorUtil::Color
+
+    record Checkpoint,
+      lightness : Tensor(Float64),
+      energy : Float64,
+      iteration : UInt32
 
     property iteration : UInt32 = 0
-    property max_iterations = DEFAULT_ITERATIONS
+
+    # The annealing temperature at the current timestep. Starts at 1, and decreases as
+    # `iteration` increases.
+    getter temperature = 1f64
 
     property relations : Array(Relation)
-
-    # Contains both color constants and [h, s] arrays. After optimization,
-    # the resulting palette will be exactly this hash, except the `[h, s]`
-    # arrays will be completed with `[h, s, l]` arrays that best satisfy
-    # the relations being optimized for.
-    property basis : Hash(T, Color | Array(Float64))
 
     # Connects each key in `basis` with either:
     # - The index in `lightness` where that color is being solved for
@@ -26,49 +45,80 @@ module ColorUtil::Palette
     # This is used to resolve the working location of constants and variables.
     property lookup : Hash(T, Color | UInt32)
 
-    # `lightness[lookup[key]]` is the current estimate of the lightness that
-    # belongs with the hue and saturation specified in `basis[key]`.
+    # TODO: I can probalby remove `lightness` in its entirety if the user
+    # passes in the number of variables to optimize.
+    # `lightness[lookup[key]]` is the current estimate of the lightness associated
+    # with `key`.
     property lightness : Tensor(Float64)
 
-    def initialize(@hash, @relations)
-      # TODO: Test all of this, work on step_annealing and candidate generation
-      keys = @hash.keys
+    # The output of the energy function when applied to `lightness`.
+    # The energy functon can be (relatively) expensive, so this variable
+    # is used to avoid needless recomputation in the optimizer loop.
+    property energy : Float64
 
-      # Decompose `hash` into a more useful representation
-      lookup = hash.new(initial_capacity = keys.size)
-      variable_count = 0
+    # A snapshot of the best condition the optimizer has ever reached.
+    property best : Checkpoint
 
-      keys.each do |key|
-        value = hash[key]
-
-        if value.is_a? Color
-          @lookup[key] = value
-        else
-          @lookup[key] = variable_count
-          variable_count += 1
-        end
-      end
+    def initialize(@lookup : Hash(T, Color | UInt32), @relations)
+      variables = @lookup.reject { |k, v| v.is_a?(Color) }
 
       # Generate a random initial lightness vector
-      @lightness = Tensor(Float64).random(variable_count)
+      @lightness = Tensor(Float64).random(0f64..1f64, [variables.size])
+      @energy = compute_energy
+      @best = create_checkpoint
     end
 
-    def self.optimize(hash, rules) : Hash(T, Color)
-      opt = Optimizer.new(hash, relations)
+    # Performs the default optimization routine and returns the approximate
+    # solution to the relations.
+    def self.optimize(lookup : Hash(T, Color | UInt32), relations) : Tensor(Float64)
+      opt = Optimizer.new(lookup, relations)
 
-      while opt.iteration < opt.max_iterations
+      while opt.iteration < MAX_ITERATIONS
         opt.step_annealing
       end
 
-      to_h
+      opt.lightness
     end
 
     def step_annealing()
       @iteration += 1
-      update_temperature
-      candidate = generate_candidate
-      candidate_energy = energy(candidate)
 
+      update_temperature
+
+      candidate = generate_candidate
+      candidate_energy = compute_energy(candidate)
+      energy_drop = @energy - candidate_energy
+
+      prob = acceptance_probability(energy_drop)
+
+      puts
+      puts "Beginning iteration #{@iteration}".colorize :blue
+      puts "\tStarting at: #{@lightness}"
+      puts "\tTemperature: #{@temperature}"
+      puts "\tEnergy drop: #{energy_drop}"
+      puts "\tProbability: #{prob}".colorize prob > 0.5 ? :green : :red
+
+      if prob > Random.rand
+        @lightness = candidate
+        @energy = candidate_energy
+      end
+
+      # Create a checkpoint if this is the lowest energy we've had
+      if @energy < @best.energy
+        @best = create_checkpoint
+      else
+        # In this branch, we're currently exploring the energy surface. This is
+        # core to simulated annealing, but we don't want it to get out of hand.
+        # So, if it's been too long, we restore our progress to the best we've ever
+        # found.
+
+        if @iteration - @best.iteration > EXPLORATION_PERIOD
+          restore_checkpoint(best)
+
+          # This will effectively just update `@best.iteration`
+          @best = create_checkpoint
+        end
+      end
     end
 
     # Ensures that the temperature of the system reflects the number of annealing
@@ -76,15 +126,48 @@ module ColorUtil::Palette
     #
     # Returns the annealing temperature.
     def update_temperature() : Float64
-      completion = @iteration.to_f64 / @max_iteration
-      @temperature = 1 - Math.exp(completion - 1f64)
+      completion = @iteration.to_f64 / MAX_ITERATIONS
+      @temperature = Math.exp(-3 * completion)
     end
 
     # Generates a 
-    def generate_candidate() : Tensor(Float64)
+    def generate_candidate : Tensor(Float64)
+      span = NEIGHBOUR_COEFFICIENT * @temperature
+      ret = @lightness + Tensor(Float64).random(-span..span, @lightness.shape)
+      ret.map! { |value| Math.min(Math.max(value, 0f64), 1f64)}
+      ret
     end
 
-    def to_h()
+    # Returns a checkpoint that saves the current state of the optimizer.
+    def create_checkpoint : Checkpoint
+      Checkpoint.new(
+        @lightness,
+        @energy,
+        @iteration
+      )
+    end
+
+    def restore_checkpoint(checkpoint = @best)
+      @lightness = checkpoint.lightness
+      @energy = checkpoint.energy
+    end
+
+    # Returns the probability of accepting a new state given the annealing temperatue
+    # and the energy of the new state.
+    # Requires normalized energies on [0, 1]
+    def acceptance_probability(energy_drop) : Float64
+      return 1f64 if energy_drop > 0
+      return @temperature * (1 + Math.tanh(energy_drop))
+    end
+
+    # Copmutes the energy function, which is a function of the error.
+    def compute_energy(lightness = @lightness) : Float64
+      Math.sqrt(compute_error(lightness))
+    end
+
+    # Computes the sum error from each relation given a lightness.
+    def compute_error(lightness = @lightness) : Float64
+      (@relations.map &.error(lightness)).sum
     end
   end
 end
