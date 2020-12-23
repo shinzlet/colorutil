@@ -11,7 +11,7 @@ include ColorUtil::Relations
 module ColorUtil::Palette
   class Optimizer(T)
     # The maximum number of iterations that `optimize` runs.
-    MAX_ITERATIONS = 100
+    MAX_ITERATIONS = 500
 
     # If more than this number of iterations occur without finding a new
     # best state, the `best` checkpoint will be restored.
@@ -77,7 +77,7 @@ module ColorUtil::Palette
         opt.step_annealing
       end
 
-      opt.lightness
+      opt.best.lightness
     end
 
     def step_annealing()

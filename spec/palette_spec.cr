@@ -9,7 +9,7 @@ hash = {
 }
 
 palette = Palette.build(hash) do |r, lk|
-   r << EqualContrast.new([lk[:bg], lk[:red]], 1f64)
+   r << EqualContrast.new([lk[:bg], lk[:red]], 3.5f64)
 end
 
 pp palette
