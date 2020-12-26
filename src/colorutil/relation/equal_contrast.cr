@@ -36,7 +36,8 @@ module ColorUtil::Relations
     # Returns the squared difference between the actual and target contrast
     # values.
     def self.error(l1 : Float64, l2 : Float64, contrast : Float64) : Float64
-      (ColorUtil.wcag_contrast(l1, l2) - contrast) ** 2
+      actual_con = ColorUtil.wcag_contrast(l1, l2)
+      (actual_con - contrast) ** 2
     end
 
     # TODO: Keep?

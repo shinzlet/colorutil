@@ -11,16 +11,16 @@ include ColorUtil::Relations
 module ColorUtil::Palette
   class Optimizer(T)
     # The maximum number of iterations that `optimize` runs.
-    MAX_ITERATIONS = 500
+    MAX_ITERATIONS = 5000
 
     # If more than this number of iterations occur without finding a new
     # best state, the `best` checkpoint will be restored.
-    EXPLORATION_PERIOD = 50
+    EXPLORATION_PERIOD = 100
 
     # This is a scaling factor for creating a random candidate.
     # It is therefore the maximum value of `(generate_candidate - @lightness)[i]`
     # for any `i` and any possible candidate.
-    NEIGHBOUR_COEFFICIENT = 1f64
+    NEIGHBOUR_COEFFICIENT = 2f64
 
     alias PartialColor = Array(Float64)
     alias AnyColor = PartialColor | ColorUtil::Color
@@ -77,6 +77,7 @@ module ColorUtil::Palette
         opt.step_annealing
       end
 
+      puts "Final energy: #{opt.best.energy}".colorize :yellow
       opt.best.lightness
     end
 
@@ -91,16 +92,15 @@ module ColorUtil::Palette
 
       prob = acceptance_probability(energy_drop)
 
-      puts
-      puts "Beginning iteration #{@iteration}".colorize :blue
-      puts "\tStarting at: #{@lightness}"
-      puts "\tTemperature: #{@temperature}"
-      puts "\tEnergy drop: #{energy_drop}"
-      puts "\tProbability: #{prob}".colorize prob > 0.5 ? :green : :red
-
       if prob > Random.rand
         @lightness = candidate
         @energy = candidate_energy
+        puts
+        puts "Beginning iteration #{@iteration}".colorize :blue
+        puts "\tStarting at: #{@lightness}"
+        puts "\tEnergy: #{@energy}"
+        puts "\tEnergy drop: #{energy_drop}"
+        puts "\tProbability: #{prob}".colorize prob > 0.5 ? :green : :red
       end
 
       # Create a checkpoint if this is the lowest energy we've had
@@ -125,9 +125,14 @@ module ColorUtil::Palette
     # steps that have been taken.
     #
     # Returns the annealing temperature.
+    STEEPNESS = 2f64
+    D = Math.tanh(STEEPNESS / 2)
+    A = 1/(2 * D)
     def update_temperature() : Float64
       completion = @iteration.to_f64 / MAX_ITERATIONS
-      @temperature = Math.exp(-3 * completion)
+      #@temperature = 1 - completion # Math.exp(-3 * completion)
+      #@temperature = A * ( D - Math.tanh(STEEPNESS * (completion - 1/2)) )
+      @temperature = (Math.exp(-completion) - Math.exp(-1)) / (1 - Math.exp(-1))
     end
 
     # Generates a 
@@ -157,7 +162,8 @@ module ColorUtil::Palette
     # Requires normalized energies on [0, 1]
     def acceptance_probability(energy_drop) : Float64
       return 1f64 if energy_drop > 0
-      return @temperature * (1 + Math.tanh(energy_drop))
+      # TODO: 100 should not be a constant!
+      return @temperature * (1 + Math.tanh(energy_drop / 100))
     end
 
     # Copmutes the energy function, which is a function of the error.
