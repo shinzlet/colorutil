@@ -2,25 +2,22 @@ require "./spec_helper.cr"
 
 include ColorUtil
 
-hash = {
-   :bg => Color.from_hex(0xfeba19),
-   :red => [0f64, 100f64],
-   :green => [180f64, 50f64]
+basis = {
+  # :bg => Color.from_hsl(0, 0, ColorUtil.inverse_approx_relative_luminance(1)),
+  :bg => Color.from_hex(0x32302f),
+  :a => [14.8f64, 98.4f64],
+  :b => [56.9f64, 80.1f64]
 }
 
-palette = Palette.build(hash) do |r, lk|
-   r << EqualContrast.new([ lk[:bg], lk[:red] ], 4.5f64)
-   r << EqualContrast.new([ lk[:red], lk[:green] ], 3f64)
+palette = Palette.build(basis) do |r, lk|
+  r << EqualContrast.new( [lk[:a], lk[:bg]], 1.5)
+  r << EqualContrast.new( [lk[:b], lk[:bg]], 5.5)
+  r << EqualContrast.new( [lk[:a], lk[:b]], 2.5)
 end
 
-pp palette
-puts palette[:bg].contrast(palette[:red])
-puts palette[:red].contrast(palette[:green])
-
 set_background(palette[:bg].to_hex_string)
-(0..8).each { |idx| set_color(idx, palette[:red].to_hex_string) }
-(8..16).each { |idx| set_color(idx, palette[:green].to_hex_string) }
-set_special(10, palette[:green].to_hex_string)
+(0..16).each { |idx| set_color(idx, palette[idx % 2 == 0 ? :a : :b].to_hex_string) }
+set_special(10, palette[:a].to_hex_string)
 
 def set_special(index, color : String, io : IO = STDOUT)
    io << "\033]#{index};#{color}\033\\"

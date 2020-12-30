@@ -11,7 +11,7 @@ include ColorUtil::Relations
 module ColorUtil::Palette
   class Optimizer(T)
     # The maximum number of iterations that `optimize` runs.
-    MAX_ITERATIONS = 5000
+    MAX_ITERATIONS = 500
 
     # If more than this number of iterations occur without finding a new
     # best state, the `best` checkpoint will be restored.
@@ -77,8 +77,18 @@ module ColorUtil::Palette
         opt.step_annealing
       end
 
-      puts "Final energy: #{opt.best.energy}".colorize :yellow
-      opt.best.lightness
+      opt.restore_checkpoint(opt.best)
+
+      puts "Annealing energy: #{opt.energy}".colorize :yellow
+      puts opt.lightness
+
+      (0..100).each do
+        opt.step_gd(0.00005, 0.001)
+      end
+
+      puts "Final energy: #{opt.energy}".colorize :yellow
+      puts opt.lightness
+      opt.lightness
     end
 
     def step_annealing()
@@ -95,12 +105,12 @@ module ColorUtil::Palette
       if prob > Random.rand
         @lightness = candidate
         @energy = candidate_energy
-        puts
-        puts "Beginning iteration #{@iteration}".colorize :blue
-        puts "\tStarting at: #{@lightness}"
-        puts "\tEnergy: #{@energy}"
-        puts "\tEnergy drop: #{energy_drop}"
-        puts "\tProbability: #{prob}".colorize prob > 0.5 ? :green : :red
+        # puts
+        # puts "Beginning iteration #{@iteration}".colorize :blue
+        # puts "\tStarting at: #{@lightness}"
+        # puts "\tEnergy: #{@energy}"
+        # puts "\tEnergy drop: #{energy_drop}"
+        # puts "\tProbability: #{prob}".colorize prob > 0.5 ? :green : :red
       end
 
       # Create a checkpoint if this is the lowest energy we've had
@@ -121,11 +131,39 @@ module ColorUtil::Palette
       end
     end
 
+    def step_gd(epsilon, step_size = nil)
+      grad = gradient(epsilon)
+      step_size ||= Math.sqrt((grad.transpose * grad).value) / 10000
+      @lightness -= grad * step_size
+      @lightness.map! { |value| Math.min(Math.max(value, 0f64), 1f64)}
+      @energy = compute_energy
+      # puts "gradient: #{grad}"
+      # puts "step size: #{step_size}"
+      # puts "new lightness: #{@lightness}"
+      # puts
+    end
+
+    def gradient(epsilon)
+      grad = Tensor(Float64).zeros_like(@lightness)
+      
+      @lightness.size.times do |idx|
+        copy = @lightness.dup
+        copy[idx] += epsilon
+        grad[idx] = (compute_error(copy) - compute_error(@lightness)) / epsilon
+        # puts "\tcopy: #{copy}"
+        # puts "\tcopy error: #{compute_error(copy)}"
+        # puts "\tnormal: #{@lightness}"
+        # puts "\tnormal error: #{compute_error(@lightness)}"
+      end
+
+      grad
+    end
+
     # Ensures that the temperature of the system reflects the number of annealing
     # steps that have been taken.
     #
     # Returns the annealing temperature.
-    STEEPNESS = 2f64
+    STEEPNESS = 1f64
     D = Math.tanh(STEEPNESS / 2)
     A = 1/(2 * D)
     def update_temperature() : Float64
