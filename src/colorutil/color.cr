@@ -69,24 +69,28 @@ module ColorUtil
     private def initialize(@h, @s, @l)
     end
 
+    def hsl : Tuple(Float64, Float64, Float64)
+      {h, s, l}
+    end
+
     def r : UInt8
-      rgb[:r]
+      rgb[0]
     end
 
     def g : UInt8
-      rgb[:g]
+      rgb[1]
     end
 
     def b : UInt8
-      rgb[:b]
+      rgb[2]
     end
 
-    def rgb : NamedTuple(r: UInt8, g: UInt8, b: UInt8)
+    def rgb : Tuple(UInt8, UInt8, UInt8)
       a = HSLuv.hsluv_to_rgb(@h, @s, @l).map do |val|
         (255 * val).round.clamp(0..255).to_u8
       end
 
-      {r: a[0], g: a[1], b: a[2]}
+      {a[0], a[1], a[2]}
     end
 
     def r=(r)
@@ -154,7 +158,7 @@ module ColorUtil
     # accessibility guidelines.
     def relative_luminance : Float64
       # Transform color channels into luminosity components
-      r, g, b = rgb.map do |key, ch|
+      r, g, b = rgb.map do |ch|
         ch /= 255f64
 
         if ch <= 0.03928

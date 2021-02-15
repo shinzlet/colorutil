@@ -1,23 +1,59 @@
 require "./spec_helper.cr"
+require "json"
 
 include ColorUtil
 
-basis = {
-  # :bg => Color.from_hsl(0, 0, ColorUtil.inverse_approx_relative_luminance(1)),
-  :bg => Color.from_hex(0x32302f),
-  :a => [14.8f64, 98.4f64],
-  :b => [56.9f64, 80.1f64]
-}
-
-palette = Palette.build(basis) do |r, lk|
-  r << EqualContrast.new( [lk[:a], lk[:bg]], 1.5)
-  r << EqualContrast.new( [lk[:b], lk[:bg]], 5.5)
-  r << EqualContrast.new( [lk[:a], lk[:b]], 2.5)
+def despecify(color)
+  h,s,l = color.hsl
+  [h, s]
 end
 
-set_background(palette[:bg].to_hex_string)
-(0..16).each { |idx| set_color(idx, palette[idx % 2 == 0 ? :a : :b].to_hex_string) }
-set_special(10, palette[:a].to_hex_string)
+
+def blend_palettes(start, stop, rise)
+  bg = Color.mix(Color.from_hex(start["background"].to_s), Color.from_hex(stop["background"].to_s), rise)
+  fg = Color.mix(Color.from_hex(start["foreground"].to_s), Color.from_hex(stop["foreground"].to_s), rise)
+
+  basis = {
+    :bg => bg,
+    :fg => fg
+  } of Symbol | Int32 => ColorUtil::Palette::Optimizer::AnyColor
+
+  16.times do |i|
+    start_col = Color.from_hex(start["color"][i].to_s)
+    stop_col = Color.from_hex(stop["color"][i].to_s)
+
+    basis[i] = despecify Color.mix(start_col, stop_col, rise)
+  end
+
+  palette = Palette.build(basis) do |r, lk|
+    16.times do |i|
+      start_contrast = Color.from_hex(start["color"][i].to_s).contrast(Color.from_hex(start["background"].to_s))
+      stop_contrast = Color.from_hex(stop["color"][i].to_s).contrast(Color.from_hex(stop["background"].to_s))
+
+      contrast = stop_contrast * rise + start_contrast * (1 - rise)
+      r << EqualContrast.new( [lk[:bg], lk[i]], contrast )
+    end
+
+    # r << EqualContrast.new( [lk[8], lk[2]], 5f64)
+  end
+
+  palette
+end
+
+hund = JSON.parse(File.read("./spec/data/embers.dark.txt"))
+sweetlove = JSON.parse(File.read("./spec/data/mocha.dark.txt"))
+
+output = File.open("/dev/pts/4", "w")
+steps = 1
+steps.times do |iter|
+  blend = iter / steps.to_f64
+  palette = blend_palettes(hund, sweetlove, blend)
+  set_background(palette[:bg].to_hex_string, output)
+  set_special(10, palette[:fg].to_hex_string, output)
+  16.times { |i| set_color(i, palette[i].to_hex_string, output) }
+  output.flush
+  # sleep 100.milliseconds
+end
 
 def set_special(index, color : String, io : IO = STDOUT)
    io << "\033]#{index};#{color}\033\\"

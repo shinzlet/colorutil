@@ -6,7 +6,7 @@ describe Color do
   describe "#from_hex" do
     it "constructs a color from hex" do
       col = Color.from_hex(0xabcdef)
-      col.rgb.should eq ( {r: 0xab, g: 0xcd, b: 0xef} )
+      col.rgb.should eq ( {0xab, 0xcd, 0xef} )
     end
 
     it "raises on overflow" do
@@ -30,7 +30,7 @@ describe Color do
   describe "#rgb" do
     it "converts to rgb properly" do
       col = Color.from_rgb(0xab, 0xcd, 0xef)
-      col.rgb.should eq( {r: 0xab, g: 0xcd, b: 0xef} )
+      col.rgb.should eq( {0xab, 0xcd, 0xef} )
     end
   end
 

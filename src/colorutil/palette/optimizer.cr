@@ -11,7 +11,7 @@ include ColorUtil::Relations
 module ColorUtil::Palette
   class Optimizer(T)
     # The maximum number of iterations that `optimize` runs.
-    MAX_ITERATIONS = 500
+    MAX_ITERATIONS = 100
 
     # If more than this number of iterations occur without finding a new
     # best state, the `best` checkpoint will be restored.
@@ -79,15 +79,16 @@ module ColorUtil::Palette
 
       opt.restore_checkpoint(opt.best)
 
-      puts "Annealing energy: #{opt.energy}".colorize :yellow
-      puts opt.lightness
+      # puts "Annealing energy: #{opt.energy}".colorize :yellow
+      # puts opt.lightness
 
       (0..100).each do
-        opt.step_gd(0.00005, 0.001)
+        opt.step_gd(0.005)
+        break if opt.energy < 2
       end
 
-      puts "Final energy: #{opt.energy}".colorize :yellow
-      puts opt.lightness
+      # puts "Final energy: #{opt.energy}".colorize :yellow
+      # puts opt.lightness
       opt.lightness
     end
 
@@ -106,11 +107,11 @@ module ColorUtil::Palette
         @lightness = candidate
         @energy = candidate_energy
         # puts
-        # puts "Beginning iteration #{@iteration}".colorize :blue
-        # puts "\tStarting at: #{@lightness}"
-        # puts "\tEnergy: #{@energy}"
-        # puts "\tEnergy drop: #{energy_drop}"
-        # puts "\tProbability: #{prob}".colorize prob > 0.5 ? :green : :red
+        puts "Beginning iteration #{@iteration}".colorize :blue
+        puts "\tStarting at: #{@lightness}"
+        puts "\tEnergy: #{@energy}"
+        puts "\tEnergy drop: #{energy_drop}"
+        puts "\tProbability: #{prob}".colorize prob > 0.5 ? :green : :red
       end
 
       # Create a checkpoint if this is the lowest energy we've had
