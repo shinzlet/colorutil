@@ -9,6 +9,8 @@ dependencies:
     github: hsluv/hsluv-crystal
   num:
     github: crystal-data/num.cr
+  ishi:
+    github: toddsundsted/ishi
 
 crystal: 0.34.0
 

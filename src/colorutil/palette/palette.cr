@@ -22,19 +22,19 @@ module ColorUtil::Palette
   def build(basis : Hash(K, Optimizer::AnyColor),
             relations : Array(ColorUtil::Relations::Relation)) : Hash(K, Color) forall K
     lookup = create_lookup(basis)
-    bundle(basis, lookup, Optimizer.optimize(lookup, relations))
+    bundle(basis, lookup, *Optimizer.optimize(lookup, relations))
   end
 
   # Shorthand for invoking `Palette::build` without having to create an explicit
   # relationset beforehand. Yields an empty array of `ColorUtil::Relation` in the
   # context of the `Relations` module, which allows code to be much more terse.
   # This array does not need to be returned - all modifications are tracked.
-  def build(basis : Hash(K, Optimizer::AnyColor), &block) : Hash(K, Color) forall K
+  def build(basis : Hash(K, Optimizer::AnyColor), &block) forall K
     lookup, variable_count = create_lookup(basis)
     relations = [] of Relation
     with Relations yield relations, lookup
 
-    bundle(basis, lookup, Optimizer.optimize(lookup, relations))
+    bundle(basis, lookup, *Optimizer.optimize(lookup, relations))
   end
 
   # Converts a map whos values are `Optimizer::AnyColor` into 
@@ -60,7 +60,7 @@ module ColorUtil::Palette
   end
 
   # Converts optimization data into a user-friendly color palette.
-  def bundle(basis : Hash(K, Optimizer::AnyColor), lookup, lightness) : Hash(K, Color) forall K
+  def bundle(basis : Hash(K, Optimizer::AnyColor), lookup, lightness, optimizer) forall K
     output = Hash(K, Color).new(initial_capacity: basis.size)
 
     lookup.each do |key, val|
@@ -74,6 +74,6 @@ module ColorUtil::Palette
       end
     end
 
-    output
+    {output, optimizer}
   end
 end

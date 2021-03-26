@@ -1,4 +1,5 @@
-require "./spec_helper.cr"
+require "../src/colorutil"
+require "ishi"
 require "json"
 
 include ColorUtil
@@ -25,7 +26,7 @@ def blend_palettes(start, stop, rise)
     basis[i] = despecify Color.mix(start_col, stop_col, rise)
   end
 
-  palette = Palette.build(basis) do |r, lk|
+  palette, opt = Palette.build(basis) do |r, lk|
     16.times do |i|
       start_contrast = Color.from_hex(start["color"][i].to_s).contrast(Color.from_hex(start["background"].to_s))
       stop_contrast = Color.from_hex(stop["color"][i].to_s).contrast(Color.from_hex(stop["background"].to_s))
@@ -37,22 +38,27 @@ def blend_palettes(start, stop, rise)
     # r << EqualContrast.new( [lk[8], lk[2]], 5f64)
   end
 
+	# Ishi.new do
+	# 	plot(opt.plotdata)
+	# 	show
+	# end
+
   palette
 end
 
-hund = JSON.parse(File.read("./spec/data/embers.dark.txt"))
-sweetlove = JSON.parse(File.read("./spec/data/mocha.dark.txt"))
+hund = JSON.parse(File.read("./examples/data/monokai.json"))
+sweetlove = JSON.parse(File.read("./examples/data/sweetlove.json"))
 
 output = File.open("/dev/pts/4", "w")
-steps = 1
+steps = 100
 steps.times do |iter|
-  blend = iter / steps.to_f64
+	blend = iter / steps.to_f64
   palette = blend_palettes(hund, sweetlove, blend)
   set_background(palette[:bg].to_hex_string, output)
   set_special(10, palette[:fg].to_hex_string, output)
   16.times { |i| set_color(i, palette[i].to_hex_string, output) }
   output.flush
-  # sleep 100.milliseconds
+  sleep 10.milliseconds
 end
 
 def set_special(index, color : String, io : IO = STDOUT)

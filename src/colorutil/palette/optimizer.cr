@@ -11,7 +11,7 @@ include ColorUtil::Relations
 module ColorUtil::Palette
   class Optimizer(T)
     # The maximum number of iterations that `optimize` runs.
-    MAX_ITERATIONS = 100
+    MAX_ITERATIONS = 500
 
     # If more than this number of iterations occur without finding a new
     # best state, the `best` checkpoint will be restored.
@@ -35,6 +35,8 @@ module ColorUtil::Palette
     # The annealing temperature at the current timestep. Starts at 1, and decreases as
     # `iteration` increases.
     getter temperature = 1f64
+
+    getter plotdata = Array(Float64).new(MAX_ITERATIONS)
 
     property relations : Array(Relation)
 
@@ -70,7 +72,7 @@ module ColorUtil::Palette
 
     # Performs the default optimization routine and returns the approximate
     # solution to the relations.
-    def self.optimize(lookup : Hash(T, Color | UInt32), relations) : Tensor(Float64)
+    def self.optimize(lookup : Hash(T, Color | UInt32), relations)
       opt = Optimizer.new(lookup, relations)
 
       while opt.iteration < MAX_ITERATIONS
@@ -82,14 +84,14 @@ module ColorUtil::Palette
       # puts "Annealing energy: #{opt.energy}".colorize :yellow
       # puts opt.lightness
 
-      (0..100).each do
+      (0..20).each do
         opt.step_gd(0.005)
-        break if opt.energy < 2
+        # break if opt.energy < 2
       end
 
       # puts "Final energy: #{opt.energy}".colorize :yellow
       # puts opt.lightness
-      opt.lightness
+      {opt.lightness, opt}
     end
 
     def step_annealing()
@@ -130,11 +132,12 @@ module ColorUtil::Palette
           @best = create_checkpoint
         end
       end
+      plotdata << @energy
     end
 
     def step_gd(epsilon, step_size = nil)
       grad = gradient(epsilon)
-      step_size ||= Math.sqrt((grad.transpose * grad).value) / 10000
+      step_size ||= Math.sqrt((grad.transpose * grad).value) / 100000
       @lightness -= grad * step_size
       @lightness.map! { |value| Math.min(Math.max(value, 0f64), 1f64)}
       @energy = compute_energy
@@ -142,6 +145,8 @@ module ColorUtil::Palette
       # puts "step size: #{step_size}"
       # puts "new lightness: #{@lightness}"
       # puts
+      puts "new energy #{@energy}"
+      plotdata << @energy
     end
 
     def gradient(epsilon)
