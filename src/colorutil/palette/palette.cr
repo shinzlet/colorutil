@@ -20,21 +20,22 @@ module ColorUtil::Palette
   # default parameters. Only partial colors will be optimized - if `basis[:a}` is
   # a `Color`, then `build(basis, relations)[:a}` will be that very same color.
   def build(basis : Hash(K, Optimizer::AnyColor),
-            relations : Array(ColorUtil::Relations::Relation)) : Hash(K, Color) forall K
+            relations : Array(ColorUtil::Relations::Relation),
+            start) : Hash(K, Color) forall K
     lookup = create_lookup(basis)
-    bundle(basis, lookup, *Optimizer.optimize(lookup, relations))
+    bundle(basis, lookup, *Optimizer.optimize(lookup, relations, start))
   end
 
   # Shorthand for invoking `Palette::build` without having to create an explicit
   # relationset beforehand. Yields an empty array of `ColorUtil::Relation` in the
   # context of the `Relations` module, which allows code to be much more terse.
   # This array does not need to be returned - all modifications are tracked.
-  def build(basis : Hash(K, Optimizer::AnyColor), &block) forall K
+  def build(basis : Hash(K, Optimizer::AnyColor), start = nil, &block) forall K
     lookup, variable_count = create_lookup(basis)
     relations = [] of Relation
     with Relations yield relations, lookup
 
-    bundle(basis, lookup, *Optimizer.optimize(lookup, relations))
+    bundle(basis, lookup, *Optimizer.optimize(lookup, relations, start))
   end
 
   # Converts a map whos values are `Optimizer::AnyColor` into 

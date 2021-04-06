@@ -36,7 +36,9 @@ module ColorUtil::Relations
     # Returns the squared difference between the actual and target contrast
     # values.
     def self.error(l1 : Float64, l2 : Float64, contrast : Float64) : Float64
-      (contrast - ColorUtil.wcag_contrast(l1, l2)) ** 2
+      # Weight solutions away from white / black:
+      extremity = (0.5f64 - l1).abs + (0.5f64 - l2).abs
+      (contrast - ColorUtil.wcag_contrast(l1, l2)) ** 8# + 25 * extremity ** 2
     end
 
     # TODO: Keep?

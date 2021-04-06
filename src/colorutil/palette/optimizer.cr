@@ -15,7 +15,7 @@ module ColorUtil::Palette
 
     # If more than this number of iterations occur without finding a new
     # best state, the `best` checkpoint will be restored.
-    EXPLORATION_PERIOD = 100
+    EXPLORATION_PERIOD = 500
 
     # This is a scaling factor for creating a random candidate.
     # It is therefore the maximum value of `(generate_candidate - @lightness)[i]`
@@ -61,19 +61,19 @@ module ColorUtil::Palette
     # A snapshot of the best condition the optimizer has ever reached.
     property best : Checkpoint
 
-    def initialize(@lookup : Hash(T, Color | UInt32), @relations)
+    def initialize(@lookup : Hash(T, Color | UInt32), @relations, start = nil)
       variables = @lookup.reject { |k, v| v.is_a?(Color) }
 
       # Generate a random initial lightness vector
-      @lightness = Tensor(Float64).random(0f64..1f64, [variables.size])
+      @lightness = start || Tensor(Float64).random(0f64..1f64, [variables.size])
       @energy = compute_energy
       @best = create_checkpoint
     end
 
     # Performs the default optimization routine and returns the approximate
     # solution to the relations.
-    def self.optimize(lookup : Hash(T, Color | UInt32), relations)
-      opt = Optimizer.new(lookup, relations)
+    def self.optimize(lookup : Hash(T, Color | UInt32), relations, start = nil)
+      opt = Optimizer.new(lookup, relations, start)
 
       while opt.iteration < MAX_ITERATIONS
         opt.step_annealing
@@ -84,7 +84,7 @@ module ColorUtil::Palette
       # puts "Annealing energy: #{opt.energy}".colorize :yellow
       # puts opt.lightness
 
-      (0..20).each do
+      (0..100).each do
         opt.step_gd(0.005)
         # break if opt.energy < 2
       end
@@ -109,11 +109,11 @@ module ColorUtil::Palette
         @lightness = candidate
         @energy = candidate_energy
         # puts
-        puts "Beginning iteration #{@iteration}".colorize :blue
-        puts "\tStarting at: #{@lightness}"
-        puts "\tEnergy: #{@energy}"
-        puts "\tEnergy drop: #{energy_drop}"
-        puts "\tProbability: #{prob}".colorize prob > 0.5 ? :green : :red
+        # puts "Beginning iteration #{@iteration}".colorize :blue
+        # puts "\tStarting at: #{@lightness}"
+        # puts "\tEnergy: #{@energy}"
+        # puts "\tEnergy drop: #{energy_drop}"
+        # puts "\tProbability: #{prob}".colorize prob > 0.5 ? :green : :red
       end
 
       # Create a checkpoint if this is the lowest energy we've had
@@ -137,7 +137,7 @@ module ColorUtil::Palette
 
     def step_gd(epsilon, step_size = nil)
       grad = gradient(epsilon)
-      step_size ||= Math.sqrt((grad.transpose * grad).value) / 100000
+      step_size ||= Math.sqrt((grad.transpose * grad).value) / 50000
       @lightness -= grad * step_size
       @lightness.map! { |value| Math.min(Math.max(value, 0f64), 1f64)}
       @energy = compute_energy
@@ -145,7 +145,7 @@ module ColorUtil::Palette
       # puts "step size: #{step_size}"
       # puts "new lightness: #{@lightness}"
       # puts
-      puts "new energy #{@energy}"
+      # puts "new energy #{@energy}"
       plotdata << @energy
     end
 
@@ -176,7 +176,10 @@ module ColorUtil::Palette
       completion = @iteration.to_f64 / MAX_ITERATIONS
       #@temperature = 1 - completion # Math.exp(-3 * completion)
       #@temperature = A * ( D - Math.tanh(STEEPNESS * (completion - 1/2)) )
-      @temperature = (Math.exp(-completion) - Math.exp(-1)) / (1 - Math.exp(-1))
+
+      # Current best
+      #@temperature = (Math.exp(-completion) - Math.exp(-1)) / (1 - Math.exp(-1))
+      @temperature = {1f64 - 8 * completion, (1 - completion) / 4}.max
     end
 
     # Generates a 

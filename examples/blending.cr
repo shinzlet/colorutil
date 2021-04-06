@@ -32,6 +32,7 @@ def blend_palettes(start, stop, rise)
       stop_contrast = Color.from_hex(stop["color"][i].to_s).contrast(Color.from_hex(stop["background"].to_s))
 
       contrast = stop_contrast * rise + start_contrast * (1 - rise)
+      puts contrast
       r << EqualContrast.new( [lk[:bg], lk[i]], contrast )
     end
 
@@ -43,22 +44,43 @@ def blend_palettes(start, stop, rise)
 	# 	show
 	# end
 
-  palette
+	{palette, opt}
 end
 
-hund = JSON.parse(File.read("./examples/data/monokai.json"))
+hund = JSON.parse(File.read("./examples/data/embers.light.txt"))
 sweetlove = JSON.parse(File.read("./examples/data/sweetlove.json"))
-
 output = File.open("/dev/pts/4", "w")
-steps = 100
+steps = 50
+iterationdata = Array(Float64).new(initial_capacity: steps)
+pal, opt = blend_palettes(hund, sweetlove, 0)
+puts ""
+16.times do |i|
+  # puts pal[i].contrast(Color.from_hex(hund["background"].to_s))
+  puts Color.from_hex(hund["color"][i].to_s).rgb
+  puts pal[i].rgb
+  puts
+end
+# puts opt.energy
+abort
+
+# last_update_error = -1
+# stop_updating_threshold = 20
+# restart_updating_threshold = 10
 steps.times do |iter|
-	blend = iter / steps.to_f64
-  palette = blend_palettes(hund, sweetlove, blend)
+  blend = iter / steps.to_f64
+  palette, opt = blend_palettes(hund, sweetlove, blend)
+
   set_background(palette[:bg].to_hex_string, output)
   set_special(10, palette[:fg].to_hex_string, output)
   16.times { |i| set_color(i, palette[i].to_hex_string, output) }
   output.flush
   sleep 10.milliseconds
+	iterationdata << opt.energy
+end
+
+Ishi.new do
+	plot(iterationdata)
+	show
 end
 
 def set_special(index, color : String, io : IO = STDOUT)
