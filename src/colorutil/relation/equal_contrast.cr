@@ -38,7 +38,8 @@ module ColorUtil::Relations
     def self.error(l1 : Float64, l2 : Float64, contrast : Float64) : Float64
       # Weight solutions away from white / black:
       extremity = (0.5f64 - l1).abs + (0.5f64 - l2).abs
-      (contrast - ColorUtil.wcag_contrast(l1, l2)) ** 8# + 25 * extremity ** 2
+      overshoot = ColorUtil.wcag_contrast(l1, l2) - contrast
+      overshoot ** 4
     end
 
     # TODO: Keep?

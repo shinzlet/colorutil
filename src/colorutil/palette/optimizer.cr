@@ -11,16 +11,17 @@ include ColorUtil::Relations
 module ColorUtil::Palette
   class Optimizer(T)
     # The maximum number of iterations that `optimize` runs.
-    MAX_ITERATIONS = 500
+    property iteration_target = 500
 
     # If more than this number of iterations occur without finding a new
     # best state, the `best` checkpoint will be restored.
-    EXPLORATION_PERIOD = 500
+    property exploration_period = 500
 
     # This is a scaling factor for creating a random candidate.
     # It is therefore the maximum value of `(generate_candidate - @lightness)[i]`
     # for any `i` and any possible candidate.
-    NEIGHBOUR_COEFFICIENT = 2f64
+    # 0.25 works great for dark themes
+    property neighbour_coefficient = 0.25f64
 
     alias PartialColor = Array(Float64)
     alias AnyColor = PartialColor | ColorUtil::Color
@@ -36,7 +37,7 @@ module ColorUtil::Palette
     # `iteration` increases.
     getter temperature = 1f64
 
-    getter plotdata = Array(Float64).new(MAX_ITERATIONS)
+    getter plotdata = [] of Float64
 
     property relations : Array(Relation)
 
@@ -74,24 +75,27 @@ module ColorUtil::Palette
     # solution to the relations.
     def self.optimize(lookup : Hash(T, Color | UInt32), relations, start = nil)
       opt = Optimizer.new(lookup, relations, start)
+      opt.optimize
+      {opt.lightness, opt}
+    end
 
-      while opt.iteration < MAX_ITERATIONS
-        opt.step_annealing
+    def optimize
+      while @iteration < @iteration_target
+        step_annealing
       end
 
-      opt.restore_checkpoint(opt.best)
+      restore_checkpoint(@best)
 
-      # puts "Annealing energy: #{opt.energy}".colorize :yellow
-      # puts opt.lightness
+      # puts "Annealing energy: #{@energy}".colorize :yellow
+      # puts @lightness
 
       (0..100).each do
-        opt.step_gd(0.005)
-        # break if opt.energy < 2
+        step_gd(0.005)
+        # break if energy < 2
       end
 
       # puts "Final energy: #{opt.energy}".colorize :yellow
       # puts opt.lightness
-      {opt.lightness, opt}
     end
 
     def step_annealing()
@@ -125,7 +129,7 @@ module ColorUtil::Palette
         # So, if it's been too long, we restore our progress to the best we've ever
         # found.
 
-        if @iteration - @best.iteration > EXPLORATION_PERIOD
+        if @iteration - @best.iteration > @exploration_period
           restore_checkpoint(best)
 
           # This will effectively just update `@best.iteration`
@@ -173,7 +177,7 @@ module ColorUtil::Palette
     D = Math.tanh(STEEPNESS / 2)
     A = 1/(2 * D)
     def update_temperature() : Float64
-      completion = @iteration.to_f64 / MAX_ITERATIONS
+      completion = @iteration.to_f64 / @iteration_target
       #@temperature = 1 - completion # Math.exp(-3 * completion)
       #@temperature = A * ( D - Math.tanh(STEEPNESS * (completion - 1/2)) )
 
@@ -184,7 +188,7 @@ module ColorUtil::Palette
 
     # Generates a 
     def generate_candidate : Tensor(Float64)
-      span = NEIGHBOUR_COEFFICIENT * @temperature
+      span = @neighbour_coefficient * @temperature
       ret = @lightness + Tensor(Float64).random(-span..span, @lightness.shape)
       ret.map! { |value| Math.min(Math.max(value, 0f64), 1f64)}
       ret

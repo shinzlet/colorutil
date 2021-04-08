@@ -33,7 +33,7 @@ def mix_chroma(start, stop, rise)
   [Math.atan2(ym, xm) / torad, Math.hypot(xm, ym)]
 end
 
-def blend_palettes(start, stop, rise, prev)
+def blend_palettes(start, stop, rise)
   start_bg = start["background"]
   stop_bg = stop["background"]
   
@@ -45,15 +45,18 @@ def blend_palettes(start, stop, rise, prev)
     basis[idx.to_s] = mix_chroma(start[idx.to_s], stop[idx.to_s], rise)
   end
 
-  Palette.build(basis, prev) do |rel, lk|
-    (0..15).each do |idx|
-      start_contrast = start_bg.contrast(start[idx.to_s])
-      stop_contrast = stop_bg.contrast(stop[idx.to_s])
-      contrast = start_contrast + rise * (stop_contrast - start_contrast)
+  lk, _ = Palette.create_lookup(basis)
+  rel = [] of Relations::Relation
 
-      rel << EqualContrast.new( [lk["background"], lk[idx.to_s]], contrast )
-    end
+  (0..15).each do |idx|
+    start_contrast = start_bg.contrast(start[idx.to_s])
+    stop_contrast = stop_bg.contrast(stop[idx.to_s])
+    contrast = start_contrast + rise * (stop_contrast - start_contrast)
+
+    rel << Relations::EqualContrast.new( [lk["background"], lk[idx.to_s]], contrast )
   end
+
+  {basis, lk, rel}
 end
 
 # color output
@@ -65,8 +68,7 @@ def set_color(index, color : String, io : IO = STDOUT)
   io << "\033]4;#{index};#{color}\033\\"
 end
 
-def set_background(color : String, io : IO = STDOUT)
-  set_special(11, color, io) # background color
+def set_background(color : String, io : IO = STDOUT) set_special(11, color, io) # background color
   set_special(708, color, io) # border color
 end
 
@@ -90,13 +92,45 @@ embers_light = read_palette("./examples/data/embers.light.txt")
 mocha_dark = read_palette("./examples/data/mocha.dark.txt")
 mocha_light = read_palette("./examples/data/mocha.light.txt")
 
+# data = [] of Float64
+# pal = 1
+# datasize = 1000
+# 
+# datasize.times do |idx|
+#   basis, lk, rel = blend_palettes(embers_light, sweetlove, 0)
+# 
+#   opt = Palette::Optimizer.new(lk, rel)
+#   opt.iteration_target = idx * 10
+#   # opt.neighbour_coefficient = 1.5f64 * 0.35 # 1.5f64 / datasize * idx
+#   
+#   # Optimize
+#   opt.optimize
+# 
+#   data << opt.energy
+# 
+#   # palette, _ = bundle(basis, lk, opt.lightness, opt)
+# end
+# 
+# Ishi.new do
+#   plot(data)
+#   show
+# end
+# puts data.sum / data.size
+
 steps = 100
 energy = Array(Float64).new(steps)
 target = File.open("/dev/pts/4", "w")
 prev = nil
 
 (0..steps).each do |idx|
-  pal, opt = blend_palettes(sweetlove, monokai, idx / steps, prev)
+  basis, lk, rel = blend_palettes(embers_dark, monokai, idx / (steps - 1))
+
+  opt = Palette::Optimizer.new(lk, rel, prev)
+  opt.iteration_target = 8000
+  opt.exploration_period = 1500
+  opt.optimize
+  pal, _ = Palette.bundle(basis, lk, opt.lightness, opt)
+
   prev = opt.lightness
   energy << opt.energy
   apply_palette(pal, target)
