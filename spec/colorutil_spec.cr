@@ -27,6 +27,14 @@ describe Color do
     end
   end
 
+  describe "#from_spectrum" do
+    it "Creates a color from a color spectrum" do
+      spectrum = CMF::GREEN.map { |x| Math.max(0, x) }
+      # spectrum = Slice(Int32).new(CMF::SAMPLE_COUNT, 1)
+      puts Color.from_spectrum(spectrum)
+    end
+  end
+
   describe "#rgb" do
     it "converts to rgb properly" do
       col = Color.from_rgb(0xab, 0xcd, 0xef)

@@ -10,6 +10,10 @@ dependencies:
   num:
     github: crystal-data/num.cr
 
-crystal: 0.34.0
+development_dependencies:
+  ishi:
+    github: toddsundsted/ishi
+
+crystal: ~> 1.0.0
 
 license: MIT

@@ -1,5 +1,6 @@
 require "hsluv"
 require "yaml"
+require "./cmf.cr"
 
 module ColorUtil
   # Specifies a 24 bit color.
@@ -32,7 +33,7 @@ module ColorUtil
     end
 
     # Creates a `Color` from individual rgb values.
-    def self.from_rgb(r, g, b) : Color
+    def self.from_rgb(r : Number, g : Number, b : Number) : Color
       h, s, l = HSLuv.rgb_to_hsluv(r / 255f64, g / 255f64, b / 255f64)
       new(h, s, l)
     end
@@ -40,6 +41,31 @@ module ColorUtil
     # Creates a `Color` using HSLuv hsl components.
     def self.from_hsl(h : Float64, s : Float64, l : Float64) : Color
       new(h, s, l)
+    end
+
+    def self.from_spectrum(spectrum : Indexable) : Color
+      if spectrum.size != CMF::SAMPLE_COUNT
+        raise ArgumentError.new("expected a spectrum with #{CMF::SAMPLE_COUNT} samples, but the one given has #{spectrum.size}.")
+      end
+
+      # CMF has an x-axis of wavelength (nm) and a y-axis of relative intensity. Because the
+      # relative intensity should integrate to 
+
+      r = dot_product(spectrum, CMF::RED) * CMF::STEP_NM
+      puts r
+      g = dot_product(spectrum, CMF::GREEN) * CMF::STEP_NM
+      b = dot_product(spectrum, CMF::BLUE) * CMF::STEP_NM
+      from_rgb(r, g, b)
+    end
+
+    protected def self.dot_product(u : Indexable, v : Indexable)
+      sum = 0f64
+
+      u.zip(v) do |(u_n, v_n)|
+        sum += u_n * v_n
+      end
+
+      sum
     end
 
     # Generates a random `Color`.

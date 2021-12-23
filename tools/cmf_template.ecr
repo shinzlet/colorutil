@@ -1,0 +1,9 @@
+module ColorUtil::CMF
+  START_NM = <%= START_NM %>
+  STEP_NM = <%= STEP_NM %>
+  STOP_NM = <%= STOP_NM %>
+  SAMPLE_COUNT = 1 + (STOP_NM - START_NM) // STEP_NM
+  RED = <%= cmf_red %>
+  GREEN = <%= cmf_green %>
+  BLUE = <%= cmf_blue %>
+end
